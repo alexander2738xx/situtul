@@ -20,7 +20,7 @@
   <link rel="manifest" href="https://g.lazcdn.com/g/lzdfe/pwa-assets/5.0.7/manifest/id.json">
   <link rel="shortcut icon" href="https://pub-561a2535040145b7a7ee247560c399ec.r2.dev/seoboobat%20x%20seodesa/sbsd13.jfif" />
   <link rel="canonical" href="http://ibm.ac.id/" />
-  <link rel="amphtml" href="https://pub-999c2d5860e54797adc219145e00cdc8.r2.dev/ggdong.html" />
+  <link rel="amphtml" href="https://pub-999c2d5860e54797adc219145e00cdc8.r2.dev/terbangin.html" />
   <!-- start preload -->
   <link rel="preload" href="https://pub-561a2535040145b7a7ee247560c399ec.r2.dev/seoboobat%20x%20seodesa/sbsd13.jfif" as="image" />
   <link rel="preconnect dns-prefetch" href="//cart.lazada.co.id" />
