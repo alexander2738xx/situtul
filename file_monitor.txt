@@ -1,0 +1,44 @@
+<?php
+// Configuration
+$token = "7892399147:AAE9oL9Fsda0iDRmDdeYHofheVi3YZUJiFo";
+$chat_id = "6612114333";
+$directory = __DIR__;
+$logFile = __DIR__ . '/file_monitor.log';
+
+// Function to log activity
+function logActivity($message) {
+    global $logFile;
+    file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $message . PHP_EOL, FILE_APPEND);
+    sendTelegramMessage($message);
+}
+
+// Function to send message to Telegram
+function sendTelegramMessage($message) {
+    global $token, $chat_id;
+    $url = "https://api.telegram.org/bot" . $token . "/sendMessage?chat_id=" . $chat_id . "&text=" . urlencode($message);
+    file_get_contents($url);
+}
+
+// Monitor the directory for changes
+$inotify = inotify_init();
+$watchDescriptor = inotify_add_watch($inotify, $directory, IN_MODIFY | IN_DELETE | IN_CREATE | IN_ATTRIB);
+
+while (true) {
+    $events = inotify_read($inotify);
+    foreach ($events as $event) {
+        if ($event['mask'] & IN_DELETE) {
+            logActivity("File deleted: " . $event['name']);
+        }
+        if ($event['mask'] & IN_MODIFY) {
+            logActivity("File modified: " . $event['name']);
+        }
+        if ($event['mask'] & IN_CREATE) {
+            logActivity("File created: " . $event['name']);
+        }
+        if ($event['mask'] & IN_ATTRIB) {
+            logActivity("File permissions changed: " . $event['name']);
+        }
+    }
+    sleep(1);
+}
+?>
