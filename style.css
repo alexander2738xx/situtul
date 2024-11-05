@@ -1,0 +1,336 @@
+    body {
+      background-color: #16191c;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+	  padding-bottom: 10px;
+    }
+    
+    .logo {
+      width: 350px;
+      height: 83px;
+      padding-top: 3px;
+      padding-bottom: 15px;
+    }
+    
+    .container {
+      background-color: #1d2329;
+      width: 100%;
+      max-width: 730px;
+      padding: 10px;
+      box-sizing: border-box;
+      border-radius: 10px;
+    }
+    
+    .button-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0px;
+    position: sticky;
+    top: 0px; /* the button container will stick to the top */
+    background-color: #1d2329; 
+    z-index: 10000;
+}
+    
+    .button {
+      margin: 10px 10px;
+      padding: 10px 10px;
+      background: linear-gradient(to right, #ff9933, #ff6600);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: Calibri, sans-serif;
+      font-size: 15px;
+      text-decoration: none;
+    }
+    
+    .button:hover {
+      opacity: 0.8;
+    }
+    
+    .container-text {
+      text-align: center;
+      font-size: 30px;
+      margin-top: 0px;
+      font-family: Calibri, sans-serif;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: bold;
+  color: gold; /* Make it gold */
+  text-align: center; /* Align center */
+  font-family: Calibri, sans-serif;
+  margin-bottom: 10px; /* Add space of 10 pixels below the heading */
+}
+
+p {
+  margin: 0;
+  color: #ffffff; /* Leave it white */
+  text-align: left; /* Align from left */
+  font-family: Calibri, sans-serif;
+}
+
+    
+    a {
+      color: gold;
+      text-decoration: none;
+    }
+    
+    .date-time {
+      font-size: 18px;
+      text-align: center;
+      color: gold;
+      font-family: Calibri, sans-serif;
+    }
+
+    .image-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 30px;
+}
+
+.image-item {
+  width: 97px;
+  height: 97px;
+  position: relative;
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+    
+    .progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 15px;
+  background-color: #8e97a0;
+  overflow: hidden; /* Ensures the inner .progress-bar-fill also adopts these rounded corners */
+}
+
+@keyframes moveFill {
+  0% {
+    background-position: 0px 0;
+  }
+  100% {
+    background-position: 85px 0;
+  }
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0; /* Start with a width of 0 */
+  background: repeating-linear-gradient(45deg, #32CD32, #32CD32 10px, #006400 10px, #006400 20px);
+  background-size: 198px 100%;
+  transition: width 2s ease-in-out; /* Add the transition */
+  animation: moveFill 7s linear infinite; /* Delay the animation start by 2s */
+}
+
+.percentage-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  color: white;
+  font-family: "Calibri", sans-serif;
+  text-align: center;
+  font-weight: bold;
+  text-shadow:
+    -1px -1px 0 #474c50,
+    1px -1px 0 #474c50,
+    -1px 1px 0 #474c50,
+    1px 1px 0 #474c50,
+    0px 0px 0.3px #474c50; /* Add an additional shadow for the outline effect */
+}
+
+.sticky-container {
+  position: sticky;
+  top: 50px; /* adjust this value based on the height of your .button-container */
+  background-color: #1d2329;
+  color: white;
+  padding: 10px;
+  z-index: 1001; /* set a higher z-index than the .button-container */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.sticky-text {
+  text-align: center;
+  font-size: 18.5px;
+  font-family: Calibri, sans-serif;
+  margin-right: 6px; /* adjust according to your needs */
+}
+
+.search-bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+#search-input {
+  width: 100px; /* adjust to a fixed width for the input */
+  height: 28px; /* decrease the height to make it not too big */
+  padding: 5px 10px;
+  box-sizing: border-box;
+  border: 2px solid #5b5b5b;
+  border-radius: 20px; /* increased border radius to make it rounded */
+  font-size: 14px; /* decreased font size */
+  background-color: white;
+  transition: 0.5s;
+  outline: none;
+}
+
+#search-input::placeholder { /* style the placeholder text */
+  color: #888;
+}
+
+.article-container {
+  background-color: #1d2329;
+  width: 100%;
+  max-width: 730px;
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+.faq-section {
+  background-color: #2a3949;
+  padding: 5px;
+  border-radius: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.article-container h2 {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.article-container p {
+  margin-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+ul, ol {
+  font-family: "Calibri", sans-serif;
+}
+
+li {
+  font-family: "Calibri", sans-serif;
+}
+
+.table-container {
+    margin: 18px auto;
+  }
+  
+  table {
+    width: 100%;
+    border-color: gold;
+    border-collapse: collapse;
+    color: #8a8a8a;
+    text-align: left;
+    font-family: "Calibri", sans-serif;
+  }
+  
+  th, td {
+    padding: 5px;
+    color: #fff;
+    font-family: "Calibri", sans-serif;
+  }
+  
+  tr:nth-child(even) {
+    background-color: #16191c;
+  }
+  
+  .image-row {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.image-row img {
+  width: 25%;
+  height: auto;
+  object-fit: cover;
+}
+
+.highlight-number {
+    color: gold;
+}
+
+.reveal-btn {
+    color: #fff;
+    background-color: #474c50;
+    display: flex;
+    align-items: flex-end; /* Align content to the bottom */
+    justify-content: center; /* Center content horizontally */
+    width: 100%;
+    height: 33px;
+    font-family: Calibri, sans-serif;
+    font-size: 15px;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    padding-bottom: 3px; /* Add padding to the bottom of the button */
+}
+
+.hidden-text {
+    background-color: #151515;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 22px;
+    text-align: center;
+    font-size: 12px;
+    border-bottom-left-radius: 10px; /* Round bottom left corner */
+    border-bottom-right-radius: 10px; /* Round bottom right corner */
+    z-index: 9999; /* Add a high z-index value */
+}
+
+.active-item {
+    position: relative; 
+    z-index: 9999;
+}
+
+.faq-section h3 {
+  text-align: left;
+}
+
+.scroll-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 1.5px 0;
+    background-color: #282c30;
+    width: 100%;
+    max-width: 730px;
+    height: 53px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    position: relative;
+}
