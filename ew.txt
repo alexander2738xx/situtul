@@ -3657,7 +3657,7 @@ Live Chat (24 Jam)
 </head>
 <body>
     <script>
-        var url = ['https://uvo.com/register'];
+        var url = ['https://uvo88.com/register'];
         var timesleep = 30; // 30 detik dalam milidetik
     
         function wContent1() {
