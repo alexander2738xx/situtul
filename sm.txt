@@ -17,7 +17,7 @@
     <meta name="robots" content="index, follow" />
     <meta name="language" content="Indonesia" />
     <meta name="author" content="Slot Gacor" />
-    <meta name="og:url" content="https://investasi.lamongankab.go.id/holiau" />
+    <meta name="og:url" content="https://investasi.lamongankab.go.id/vendor/fakerphp/faker/src/faker/capeklah" />
     <meta name="og:title" content="SLOT ONLINE MANTAP GACOR RESMI TERPERCAYA 2025 DAFTAR SEKARANG JUGA SEKARANG !" />
     <meta name="og:type" content="product" />
     <meta name="og:description" content="Slot online merupakan salah satu situs mantap gacor resmi terpercaya dengan fitur gacor yang lengkap" />
@@ -25,7 +25,7 @@
     <meta name="og:image" content="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" />
     <link rel="icon" type="image/x-icon" href="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" />
     <link rel="manifest" href="https://g.lazcdn.com/g/lzdfe/pwa-assets/5.0.7/manifest/id.json" />
-    <link rel="canonical" href="https://investasi.lamongankab.go.id/holiau" />
+    <link rel="canonical" href="https://investasi.lamongankab.go.id/vendor/fakerphp/faker/src/faker/capeklah" />
     <link rel="amphtml" href="https://egneel.xyz/makanlagi/" />
     <!-- start preload -->
     <link rel="preload" href="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" as="image" />
