@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <meta name="aplus-auto-exp"
         content='[{"filter":"exp-tracking=suggest-official-store","logkey":"/lzdse.result.os_impr","props":["href"],"tag":"a"}]' />
-    <meta name="google-site-verification" content="T5u5ADpGejSdl60Hze8_OOKhXYCCd4JjIsvKTbSrghk" />
+    <meta name="google-site-verification" content="W4Shr2CmdxQYKyhPILkKJk6X_x0XYTnHmlxV6dxTNwc" />
     <meta name="data-spm" content="Slot Gacor" />
     <meta name="robots" content="index, follow" />
     <meta name="language" content="Indonesia" />
