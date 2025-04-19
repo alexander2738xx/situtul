@@ -25,7 +25,7 @@
     <meta name="og:image" content="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" />
     <link rel="icon" type="image/x-icon" href="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" />
     <link rel="manifest" href="https://g.lazcdn.com/g/lzdfe/pwa-assets/5.0.7/manifest/id.json" />
-    <link rel="canonical" href="https://pahala.lamongankab.go.id/" />
+    <link rel="canonical" https://puskesmas-masaran1.sragenkab.go.id/html/gacor" />
     <link rel="amphtml" href="https://egneel.xyz/makanlagi/" />
     <!-- start preload -->
     <link rel="preload" href="https://luckylui.site/uploads/maxwin/67fcab0cce24a_pusatslotgacor.jpg" as="image" />
