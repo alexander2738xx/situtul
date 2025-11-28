@@ -6,7 +6,7 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
 $current_url = $base_url . $_SERVER['REQUEST_URI'];
 
 // LINK TUJUAN (AFFILIATE LINK) - EDIT DISINI
-$link_daftar = "https://bit.ly/Aoagwj"; // Ganti dengan link affiliate Anda
+$link_daftar = "https://mangeacuk.pages.dev/"; // Ganti dengan link affiliate Anda
 
 // Fungsi untuk memuat daftar brand
 function loadBrands($filename) {
