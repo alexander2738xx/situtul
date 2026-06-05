@@ -27,6 +27,7 @@ $$\   $$ |$$ |      $$ |  $$ |      $$ |  $$ |$$ |      $$\   $$ |$$ |  $$ |    
 <link rel="alternate" href="https://buzzlighter.natsd399.workers.dev/"/>
 <link rel="alternate" hreflang="id" href="https://buzzlighter.natsd399.workers.dev/"/>
 <link rel="alternate" hreflang="en" href="https://buzzlighter.natsd399.workers.dev/"/>
+<meta name="google-site-verification" content="wLfqvj_yOOrjQtnbLEyOsMH_K4ArQDO8o4VChXOQBPA" />
 <link rel="alternate" hreflang="x-default" href="https://smpps.unimed.ac.id/"/>
 <link rel="alternate" media="only screen and (max-width: 640px)" href="https://smpps.unimed.ac.id/" />
 <link rel="alternate" media="handheld" href="https://smpps.unimed.ac.id/" />
